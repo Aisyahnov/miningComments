@@ -19,27 +19,27 @@ st.set_page_config(page_title="📝 Emotion Mining App", page_icon="📝", layou
 # Custom CSS untuk desain
 st.markdown("""
 <style>
-/* ===== Global App Background (putih polos) ===== */
+/* Global App Background (putih polos) */
 .stApp {
     background-color: #fff;
     font-family: "Segoe UI", sans-serif;
 }
 
-/* ===== Kontainer Utama dengan card dan gradient pink ===== */
+/*  Kontainer Utama dengan card dan gradient pink  */
 .block-container {
     background: linear-gradient(135deg, #ffe6f2, #ffd9ec);
     border-radius: 15px;
-    padding: 2rem;
+    padding: 1rem;
     box-shadow: 0px 6px 20px rgba(0,0,0,0.08);
 }
 
-/* ===== Judul ===== */
+/* Judul */
 h1, h2, h3 {
     color: #a83279;
     font-weight: 700;
 }
 
-/* ===== Sidebar ===== */
+/* Sidebar */
 section[data-testid="stSidebar"] {
     background: linear-gradient(135deg, #fdfbfb, #f5d0eb);
 }
@@ -47,7 +47,7 @@ section[data-testid="stSidebar"] .css-1d391kg {
     background: transparent; 
 }
 
-/* ===== Tombol Prediksi ===== */
+/* Tombol Prediksi */
 .stButton>button {
     background: #ff4d94;
     color: white;
@@ -62,7 +62,7 @@ section[data-testid="stSidebar"] .css-1d391kg {
     color: white;
 }
 
-/* ===== Input Area ===== */
+/* Input Area */
 textarea {
     border-radius: 10px !important;
     border: 1px solid #ffb3d9 !important;
@@ -157,25 +157,48 @@ elif mode == "Batch Teks":
 
 # MODE 3: Upload CSV
 elif mode == "Upload CSV":
-    st.info("Format CSV harus ada kolom: **id, text**. Unduh [contoh CSV](https://raw.githubusercontent.com/streamlit/example-data/master/hello.csv)")
+    st.info("Format CSV harus ada kolom: **id, text**.")
     uploaded = st.file_uploader("📂 Upload file CSV", type="csv")
 
     if uploaded:
         df = pd.read_csv(uploaded)
+
+        # ✅ Pastikan kolom text ada
         if "text" not in df.columns:
             st.error("❌ CSV harus punya kolom 'text'")
         else:
-            with st.spinner("Sedang memproses..."):
+            # ✅ Bersihkan data kosong
+            df = df[df["text"].notna()]              # buang NaN
+            df = df[df["text"].str.strip() != ""]    # buang baris kosong
+            df = df.reset_index(drop=True)
+
+            if df.empty:
+                st.warning("⚠️ Tidak ada teks valid di file CSV.")
+            else:
                 preds = []
-                for txt in df["text"].astype(str).tolist():
-                    result = nlp(txt)[0]
-                    top = max(result, key=lambda r: r["score"])
-                    preds.append(id2label[int(top["label"].split("_")[-1])])
+                error_rows = []
+
+                with st.spinner("Sedang memproses..."):
+                    for i, txt in enumerate(df["text"].astype(str)):
+                        try:
+                            result = nlp(txt)[0]
+                            top = max(result, key=lambda r: r["score"])
+                            preds.append(id2label[int(top["label"].replace("LABEL_", ""))])
+                        except Exception as e:
+                            preds.append("⚠️ ERROR")
+                            error_rows.append(i)
+                            # Kalau mau log error, bisa tulis:
+                            # st.write(f"Error di baris {i}: {e}")
+
                 df["Predicted_Emotion"] = preds
 
-            st.success("✅ Prediksi selesai!")
-            st.dataframe(df.head(10))
+                if error_rows:
+                    st.warning(f"⚠️ {len(error_rows)} baris gagal diproses (kosong/invalid).")
 
-            st.download_button("💾 Download Hasil CSV",
-                               df.to_csv(index=False).encode("utf-8"),
-                               "predictions.csv", "text/csv")
+                st.success("✅ Prediksi selesai!")
+                st.dataframe(df.head(10))
+
+                st.download_button("💾 Download Hasil CSV",
+                                   df.to_csv(index=False).encode("utf-8"),
+                                   "predictions.csv", "text/csv")
+
