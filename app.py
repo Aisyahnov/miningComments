@@ -29,7 +29,7 @@ st.markdown("""
 .block-container {
     background: linear-gradient(135deg, #ffe6f2, #ffd9ec);
     border-radius: 15px;
-    padding-top: 2rem;
+    padding-top: 3rem;
     box-shadow: 0px 6px 20px rgba(0,0,0,0.08);
 }
 
@@ -201,5 +201,6 @@ elif mode == "Upload CSV":
                 st.download_button("💾 Download Hasil CSV",
                                    df.to_csv(index=False).encode("utf-8"),
                                    "predictions.csv", "text/csv")
+
 
 
